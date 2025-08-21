@@ -16,6 +16,8 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.goodafteryoon.threedays.databinding.ActivityMainBinding
+import com.google.android.gms.ads.AdRequest
+import com.google.android.gms.ads.MobileAds
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collectLatest
@@ -48,11 +50,18 @@ class MainActivity : AppCompatActivity() {
         setupRecycler()
         bindActions()
         observeGoals()
+        setupAds()
     }
 
     override fun onResume() {
         super.onResume()
         showRandomQuote()
+    }
+
+    private fun setupAds() {
+        MobileAds.initialize(this) {}
+        val adRequest = AdRequest.Builder().build()
+        binding.adView.loadAd(adRequest)
     }
 
     private fun showRandomQuote() {
