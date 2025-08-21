@@ -7,30 +7,32 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import androidx.work.workDataOf
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineWorker(appContext, params) {
 
     override suspend fun doWork(): Result = withContext(Dispatchers.Default) {
+        val goalId = inputData.getString(KEY_GOAL_ID) ?: return@withContext Result.success()
         val repo = GoalRepository(applicationContext)
-        val state = repo.getCurrentState()
-        val goalText = state?.goal ?: ""
+        val goal = repo.getGoal(goalId) ?: return@withContext Result.success()
 
         val openAppIntent = Intent(applicationContext, MainActivity::class.java)
         val openAppPending = PendingIntent.getActivity(
             applicationContext,
-            0,
+            goalId.hashCode(),
             openAppIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val remindAgainIntent = Intent(applicationContext, ReminderActionReceiver::class.java).apply {
             action = ReminderActionReceiver.ACTION_REMIND_AGAIN
+            putExtra(ReminderActionReceiver.EXTRA_GOAL_ID, goalId)
         }
         val remindAgainPending = PendingIntent.getBroadcast(
             applicationContext,
-            1,
+            goalId.hashCode() + 1,
             remindAgainIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -38,7 +40,7 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
         val builder = NotificationCompat.Builder(applicationContext, ReminderScheduler.CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(applicationContext.getString(R.string.notif_title))
-            .setContentText(applicationContext.getString(R.string.notif_text, goalText))
+            .setContentText(applicationContext.getString(R.string.notif_text, goal.text))
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
             .setContentIntent(openAppPending)
             .setAutoCancel(true)
@@ -46,8 +48,12 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             .addAction(0, applicationContext.getString(R.string.notif_action_change_goal), openAppPending)
 
         NotificationManagerCompat.from(applicationContext)
-            .notify(ReminderScheduler.NOTIF_ID, builder.build())
+            .notify(ReminderScheduler.NOTIF_ID_BASE + (goalId.hashCode() and 0x0FFF), builder.build())
 
-        Result.success()
+        Result.success(workDataOf(KEY_GOAL_ID to goalId))
+    }
+
+    companion object {
+        const val KEY_GOAL_ID: String = "goal_id"
     }
 }

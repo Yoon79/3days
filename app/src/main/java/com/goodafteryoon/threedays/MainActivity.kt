@@ -7,14 +7,18 @@ import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
-import android.text.format.DateFormat
+import android.widget.EditText
 import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import androidx.recyclerview.widget.LinearLayoutManager
 import com.goodafteryoon.threedays.databinding.ActivityMainBinding
-import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
 
 class MainActivity : AppCompatActivity() {
@@ -22,6 +26,9 @@ class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var goalRepository: GoalRepository
     private lateinit var reminderScheduler: ReminderScheduler
+
+    private lateinit var adapter: GoalAdapter
+    private var tickerJob: Job? = null
 
     private val requestNotifPerm = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -38,15 +45,34 @@ class MainActivity : AppCompatActivity() {
         createNotificationChannel()
         maybeRequestNotificationPermission()
 
-        lifecycleScope.launch {
-            goalRepository.observeGoalState()
-                .filterNotNull()
-                .collect { state ->
-                    binding.editGoal.setText(state.goal)
-                    binding.textCurrentDue(state)
-                }
-        }
+        setupRecycler()
+        bindActions()
+        observeGoals()
+    }
 
+    override fun onResume() {
+        super.onResume()
+        showRandomQuote()
+    }
+
+    private fun showRandomQuote() {
+        val quotes = resources.getStringArray(R.array.motivational_quotes)
+        if (quotes.isNotEmpty()) {
+            val idx = (quotes.indices).random()
+            binding.textQuote.text = quotes[idx]
+        }
+    }
+
+    private fun setupRecycler() {
+        adapter = GoalAdapter(
+            onEdit = { item -> promptEdit(item) },
+            onDelete = { item -> lifecycleScope.launch { deleteGoal(item) } }
+        )
+        binding.recyclerGoals.layoutManager = LinearLayoutManager(this)
+        binding.recyclerGoals.adapter = adapter
+    }
+
+    private fun bindActions() {
         binding.buttonStart.setOnClickListener {
             val goalText = binding.editGoal.text?.toString()?.trim().orEmpty()
             if (goalText.isEmpty()) {
@@ -54,21 +80,55 @@ class MainActivity : AppCompatActivity() {
                 return@setOnClickListener
             }
             lifecycleScope.launch {
-                val newState = goalRepository.setGoalAndResetTimer(goalText)
-                reminderScheduler.scheduleReminder(newState.dueEpochMillis)
-                binding.textCurrentDue(newState)
+                val item = goalRepository.addGoal(goalText)
+                reminderScheduler.scheduleReminderForGoal(item)
+                binding.editGoal.setText("")
             }
         }
     }
 
-    private fun ActivityMainBinding.textCurrentDue(state: GoalState) {
-        val dueText = DateFormat.format("yyyy-MM-dd HH:mm", state.dueEpochMillis).toString()
-        textDue.text = getString(R.string.label_due) + ": " + dueText
-        textCurrent_goalText(state.goal)
+    private fun observeGoals() {
+        lifecycleScope.launch {
+            goalRepository.observeGoals().collectLatest { list ->
+                adapter.submitList(list)
+                restartTicker()
+            }
+        }
     }
 
-    private fun ActivityMainBinding.textCurrent_goalText(goal: String) {
-        textCurrentGoal.text = getString(R.string.label_current_goal) + ": " + goal
+    private fun restartTicker() {
+        tickerJob?.cancel()
+        tickerJob = lifecycleScope.launch {
+            while (true) {
+                adapter.notifyItemRangeChanged(0, adapter.itemCount, Unit)
+                delay(1000L)
+            }
+        }
+    }
+
+    private fun promptEdit(item: GoalItem) {
+        val input = EditText(this)
+        input.setText(item.text)
+        androidx.appcompat.app.AlertDialog.Builder(this)
+            .setTitle("목표 수정")
+            .setView(input)
+            .setPositiveButton("저장") { d, _ ->
+                val newText = input.text?.toString()?.trim().orEmpty()
+                if (newText.isNotEmpty()) {
+                    lifecycleScope.launch {
+                        val updated = goalRepository.updateGoal(item.id, newText)
+                        if (updated != null) reminderScheduler.scheduleReminderForGoal(updated)
+                    }
+                }
+                d.dismiss()
+            }
+            .setNegativeButton("취소") { d, _ -> d.dismiss() }
+            .show()
+    }
+
+    private suspend fun deleteGoal(item: GoalItem) {
+        goalRepository.deleteGoal(item.id)
+        reminderScheduler.cancelReminderForGoal(item)
     }
 
     private fun createNotificationChannel() {
@@ -77,9 +137,7 @@ class MainActivity : AppCompatActivity() {
                 ReminderScheduler.CHANNEL_ID,
                 getString(R.string.notif_channel_name),
                 NotificationManager.IMPORTANCE_DEFAULT
-            ).apply {
-                description = getString(R.string.notif_channel_desc)
-            }
+            ).apply { description = getString(R.string.notif_channel_desc) }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }

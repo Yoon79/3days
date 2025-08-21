@@ -12,19 +12,22 @@ class ReminderActionReceiver : BroadcastReceiver() {
 
     override fun onReceive(context: Context, intent: Intent) {
         if (intent.action == ACTION_REMIND_AGAIN) {
-            NotificationManagerCompat.from(context).cancel(ReminderScheduler.NOTIF_ID)
+            val goalId = intent.getStringExtra(EXTRA_GOAL_ID) ?: return
             val repo = GoalRepository(context)
             val scheduler = ReminderScheduler(context)
             CoroutineScope(Dispatchers.IO).launch {
-                val current = repo.getCurrentState()
-                val goal = current?.goal ?: ""
-                val newState = repo.setGoalAndResetTimer(goal)
-                scheduler.scheduleReminder(newState.dueEpochMillis)
+                val updated = repo.resetGoalTimer(goalId)
+                if (updated != null) {
+                    NotificationManagerCompat.from(context)
+                        .cancel(ReminderScheduler.NOTIF_ID_BASE + (goalId.hashCode() and 0x0FFF))
+                    scheduler.scheduleReminderForGoal(updated)
+                }
             }
         }
     }
 
     companion object {
         const val ACTION_REMIND_AGAIN: String = "com.goodafteryoon.threedays.ACTION_REMIND_AGAIN"
+        const val EXTRA_GOAL_ID: String = "extra_goal_id"
     }
 }

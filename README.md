@@ -2,9 +2,6 @@
 
 Android app that lets you set a goal and reminds you after 3 days. You can change the goal anytime; the timer resets to 3 days from the change.
 
-## Package
-- `com.goodafteryoon.threedays`
-
 ## Build
 ```bash
 ./gradlew :app:assembleDebug

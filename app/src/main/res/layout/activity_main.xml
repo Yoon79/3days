@@ -3,15 +3,16 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:padding="24dp">
+    android:padding="16dp"
+    android:paddingTop="48dp">
 
     <TextView
-        android:id="@+id/text_current_goal"
+        android:id="@+id/text_quote"
         android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:text="@string/label_current_goal"
-        android:textStyle="bold"
-        android:textSize="18sp"
+        android:textSize="16sp"
+        android:textColor="#666666"
+        android:textStyle="italic"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent" />
@@ -22,32 +23,32 @@
         android:layout_height="wrap_content"
         android:hint="@string/hint_goal"
         android:inputType="textCapSentences|textMultiLine"
-        android:minLines="3"
-        android:maxLines="5"
-        app:layout_constraintTop_toBottomOf="@id/text_current_goal"
+        android:minLines="2"
+        android:maxLines="4"
+        app:layout_constraintTop_toBottomOf="@id/text_quote"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp" />
-
-    <TextView
-        android:id="@+id/text_due"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:text="@string/label_due"
-        app:layout_constraintTop_toBottomOf="@id/edit_goal"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="12dp" />
+        app:layout_constraintEnd_toStartOf="@+id/button_start"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="8dp" />
 
     <com.google.android.material.button.MaterialButton
         android:id="@+id/button_start"
         style="@style/Widget.MaterialComponents.Button"
-        android:layout_width="0dp"
+        android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/action_start"
-        app:layout_constraintTop_toBottomOf="@id/text_due"
+        app:layout_constraintTop_toTopOf="@+id/edit_goal"
+        app:layout_constraintBottom_toBottomOf="@+id/edit_goal"
+        app:layout_constraintEnd_toEndOf="parent" />
+
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/recycler_goals"
+        android:layout_width="0dp"
+        android:layout_height="0dp"
+        app:layout_constraintTop_toBottomOf="@id/edit_goal"
+        app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
-        android:layout_marginTop="24dp" />
+        android:layout_marginTop="12dp" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>
