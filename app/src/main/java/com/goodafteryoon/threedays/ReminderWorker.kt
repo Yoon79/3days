@@ -3,6 +3,9 @@ package com.goodafteryoon.threedays
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.media.AudioAttributes
+import android.media.RingtoneManager
+import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
@@ -41,11 +44,23 @@ class ReminderWorker(appContext: Context, params: WorkerParameters) : CoroutineW
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle(applicationContext.getString(R.string.notif_title))
             .setContentText(applicationContext.getString(R.string.notif_text, goal.text))
-            .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setContentIntent(openAppPending)
             .setAutoCancel(true)
             .addAction(0, applicationContext.getString(R.string.notif_action_remind_again), remindAgainPending)
             .addAction(0, applicationContext.getString(R.string.notif_action_change_goal), openAppPending)
+
+        // For pre-O devices, set sound and vibration directly on the notification
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+            val attributes = AudioAttributes.Builder()
+                .setUsage(AudioAttributes.USAGE_ALARM)
+                .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                .build()
+            builder.setSound(alarmUri)
+            builder.setVibrate(longArrayOf(0, 400, 200, 400))
+        }
 
         NotificationManagerCompat.from(applicationContext)
             .notify(ReminderScheduler.NOTIF_ID_BASE + (goalId.hashCode() and 0x0FFF), builder.build())

@@ -3,6 +3,8 @@ package com.goodafteryoon.threedays
 import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.media.AudioAttributes
+import android.media.RingtoneManager
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
@@ -145,8 +147,18 @@ class MainActivity : AppCompatActivity() {
             val channel = NotificationChannel(
                 ReminderScheduler.CHANNEL_ID,
                 getString(R.string.notif_channel_name),
-                NotificationManager.IMPORTANCE_DEFAULT
-            ).apply { description = getString(R.string.notif_channel_desc) }
+                NotificationManager.IMPORTANCE_HIGH
+            ).apply {
+                description = getString(R.string.notif_channel_desc)
+                enableVibration(true)
+                vibrationPattern = longArrayOf(0, 400, 200, 400)
+                val alarmUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM)
+                val attributes = AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_ALARM)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                    .build()
+                setSound(alarmUri, attributes)
+            }
             val manager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             manager.createNotificationChannel(channel)
         }
